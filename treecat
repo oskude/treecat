@@ -1,0 +1,134 @@
+#!/usr/bin/bash
+shopt -s globstar
+shopt -s dotglob
+
+indent=2           # amount of indendation charatcers
+maxlines=0         # print max number of lines from file (0 means all)
+printparent=true   # print parent path at top
+treepath=          # `realpath` of user provided directory
+treeparent=        # parent path of user proveded directory
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+out()   { printf "$1 $2\n" "${@:3}"; }
+error() { out "==> ERROR:" "$@"; } >&2
+msg()   { out "==>" "$@"; }
+msg2()  { out "  ->" "$@";}
+die()   { error "$@"; exit 1; }
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+print_usage ()
+{
+  echo 'treecat v0.2 - list directory tree and content or type of files'
+  echo 'usage:'
+  echo '   treecat [options] <directory>'
+  echo 'options:'
+  echo '   -h       print usage and options'
+  echo "   -i <n>   directory depth indentation   (default $indent)"
+  echo "   -l <n>   print max <n> lines of a file (default $maxlines == all)"
+  echo '   -p       do not print parent path at top'
+  exit 0
+}
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+print_text_plain ()
+{
+  local border='| '
+  local linenr=0
+  local foo=
+  local bar=
+
+  printf '\n'
+
+  while read line
+  do
+
+    if ((maxlines > 0)) && ((linenr++ >= maxlines)); then
+      printf '%s%s...\n' "$leftpad" "$border"
+      break
+    fi
+
+    if ((depth)) && ((indent)); then
+      printf "$leftpad"
+    fi
+    printf "$border"
+    printf "%s\n" "$line"
+
+    if ((${#line} > bar)); then
+      foo=${#line}
+      bar=$foo
+    fi
+
+  done < "$abspath"
+  
+  if ((depth)) && ((indent)); then
+    printf "$leftpad"
+  fi
+
+  local str=$(printf "%${foo}s");
+  printf '`-%s\n' "${str// /-}"
+}
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+print_inode_symlink ()
+{
+  printf ' -> %s\n' "$(realpath $abspath)"
+}
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+print_inode_directory ()
+{
+  printf '/\n'
+}
+
+############################################################################### 
+while getopts ':hi:l:p' opt
+do
+  case $opt in
+    'h') print_usage ;;
+    'i') indent=$OPTARG ;;
+    'l') maxlines=$OPTARG ;;
+    'p') printparent=false ;;
+    '?') die "Invalid option '-%s', maybe try -h" $OPTARG ;;
+  esac
+done
+shift $((OPTIND - 1))
+treepath="$*"
+
+[[ -z "$treepath" ]] && die 'No directory given, maybe try -h'
+[[ -d "$treepath" ]] || die "Not a directory: '%s'" "$treepath"
+
+treepath=$(realpath $treepath)
+treeparent=${treepath%/*}
+if $printparent; then
+  printf '[%s/]\n' "$treeparent"
+fi
+
+for abspath in "$treepath"/**
+do
+  abspath=${abspath%/}
+  relpath="${abspath#$treeparent/}"
+  depth="${relpath//[^\/]/}"
+  depth=${#depth}
+  leftpad=$(printf "%$((depth*indent))s")
+  mime=$(file -b --mime-type "$abspath")
+
+  if ((depth)) && ((indent)); then
+    printf "$leftpad"
+  fi
+  
+  if ((indent == 0)); then
+    printf "$relpath"
+  else
+    printf "${relpath##*/}"
+  fi
+
+  case "$mime" in
+    'text/plain')         print_text_plain ;;
+    'text/x-shellscript') print_text_plain ;;
+    'application/xml')    print_text_plain ;;
+    'inode/symlink')      print_inode_symlink ;;
+    'inode/directory')    print_inode_directory ;;
+    *)                    printf ' <%s>\n' "$mime" ;;
+  esac
+done
+
