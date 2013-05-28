@@ -80,6 +80,27 @@ print_inode_directory ()
   printf '/\n'
 }
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+print_leftpad ()
+{
+  if ((depth)) && ((indent)); then
+    printf "$leftpad"
+  fi
+}
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+print_path ()
+{
+
+  print_leftpad
+
+  if ((indent == 0)); then
+    printf "$relpath"
+  else
+    printf "${relpath##*/}"
+  fi
+}
+
 ############################################################################### 
 while getopts ':hi:l:p' opt
 do
@@ -112,15 +133,7 @@ do
   leftpad=$(printf "%$((depth*indent))s")
   mime=$(file -b --mime-type "$abspath")
 
-  if ((depth)) && ((indent)); then
-    printf "$leftpad"
-  fi
-  
-  if ((indent == 0)); then
-    printf "$relpath"
-  else
-    printf "${relpath##*/}"
-  fi
+  print_path
 
   case "$mime" in
     'text/plain')         print_text_plain ;;
