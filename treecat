@@ -43,7 +43,7 @@ print_text_plain ()
   do
 
     if ((maxlines > 0)) && ((linenr++ >= maxlines)); then
-      printf '%s%s...\n' "$leftpad" "$border"
+      printf '%s%s…\n' "$leftpad" "$border"
       break
     fi
 
