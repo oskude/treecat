@@ -14,12 +14,12 @@ options
     -h       print usage and options
     -i <n>   directory depth indentation
     -l <n>   print max <n> lines of a file
-    -p       do not print parent path at top'
+    -p       do not print parent path at top
 
 example
 -------
 
-    $ treecat -l3 /etc/X11/
+    ❱❱ treecat -l3 /etc/X11/
     [/etc/]
     X11/
       xinit/
@@ -63,8 +63,8 @@ example
         `----------------------------------------------------------------------
         30-mydefaults.conf
         | Section "InputClass"
-        | Identifier      "Keyboard Defaults"
-        | MatchIsKeyboard "yes"
+        |   Identifier      "My Keyboard"
+        |   MatchIsKeyboard "yes"
         | ...
-        `------------------------------------
+        `--------------------------------
 
