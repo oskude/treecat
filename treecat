@@ -39,7 +39,7 @@ print_text_plain ()
 
   printf '\n'
 
-  while read line
+  while IFS= read line
   do
 
     if ((maxlines > 0)) && ((linenr++ >= maxlines)); then
