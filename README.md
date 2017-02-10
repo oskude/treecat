@@ -1,6 +1,8 @@
 # treecat
 List directory tree with file mime-type and content.
 
+![screenshot](screenshot.gif?raw=true "screenshot of treecat color output")
+
 ## Usage
 ```
 treecat [options] <directory>
@@ -55,6 +57,3 @@ treecat [options] <directory>
         │   MatchIsKeyboard "yes"
         ╵╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶
 ```
-
-## Screenshot
-![screenshot](screenshot.gif?raw=true "screenshot of treecat color output")
