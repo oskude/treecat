@@ -1,147 +1,184 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+function printHelp
+{
+	1>&2 cat <<-EOF
+	treecat $Version - List directory tree with file mime-type and content.
+	usage:
+	   treecat [options] <directory>
+	options:
+	   -h         help and options
+	   -c         color print
+	   -e <expr>  exclude files/dirs          (current: ${Options[excludePattern]})
+	   -i <n>     indentation width           (current: ${Options[indentSize]})
+	   -l <n>     lines of a file to print    (current: ${Options[maxLines]})
+	   -p         parent path printed at top
+	   -d <n>     depth of recursion          (current: ${Options[recursion]})
+	   -t <n>     tab width (inside files)    (current: ${Options[tabSize]})
+	EOF
+}
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+function getPathAndOptions
+{
+	local opt
+
+	while getopts ':hce:i:l:pd:t:' opt; do
+		case $opt in
+			'c') Options[useColors]=1;;
+			'e') Options[excludePattern]=$OPTARG;;
+			'i') Options[indentSize]=$OPTARG;;
+			'l') Options[maxLines]=$OPTARG;;
+			'p') Options[printParent]=1;;
+			'd') Options[recursion]=$OPTARG;;
+			't') Options[tabSize]=$OPTARG;;
+			'h') printHelp && exit 0;;
+			'?') printf "Invalid option '-$OPTARG', try -h\n" >&2 && exit 1;;
+		esac
+	done
+
+	shift $((OPTIND - 1))
+
+	Tab=$(printf "%${Options[tabSize]}s");
+	Path="$*"
+
+	if [[ -z "$Path" ]]; then
+		printHelp
+		return 1
+	elif [[ ! -d "$Path" ]]; then
+		echo "Not a directory!" >&2
+		return 2
+	elif [[ ! -r "$Path" ]]; then
+		echo "Not readable!" >&2
+		return 3
+	fi
+
+	return 0
+}
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+function printFile
+{
+	local path="$1"
+	local indent="$2"
+	local mime="$3"
+	local pre="${indent}${Options[left]}"
+	local node="${path##*/}"
+	local maxLen=0;
+	local nr=0;
+	local line;
+	local len;
+	local hmm=""
+
+	printf "$indent"
+	((${Options[useColors]})) && printf "${Options[colorFile]}"
+	printf "$node"
+	((${Options[useColors]})) && printf "${Options[colorMime]}"
+	printf " <$mime>\n"
+
+	((${Options[useColors]})) && printf "${Options[colorContent]}"
+
+	while IFS= read line; do
+		if ((${Options[maxLines]} > 0)) && ((nr++ >= ${Options[maxLines]})); then
+			hmm="Prtl"
+			break
+		fi
+		line="${line//$'\t'/$Tab}"
+		len=${#line}
+		((len > maxLen)) && maxLen=$len
+		echo "$pre$line"
+	done < "$path"
+
+	let len="$maxLen + ${#Options[left]} - ${#Options[bottom]}"
+	line=$(printf "%${len}s");
+	printf "%s%s\n" \
+	       "${indent}${Options[leftBottom$hmm]}" \
+	       "${line// /${Options[bottom$hmm]}}"
+	printf "\e[0m"
+}
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+function printSymlink
+{
+	local path="$1"
+	local indent="$2"
+	local mime="$3"
+
+	printf "$indent"
+	((${Options[useColors]})) && printf "${Options[colorFile]}"
+	printf "${path##*/} ${Options[symlink]} %s\n" $(realpath -m "$path")
+}
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+function printBinary
+{
+	local path="$1"
+	local indent="$2"
+	local mime="$3"
+
+	printf "$indent"
+	((${Options[useColors]})) && printf "${Options[colorFile]}"
+	printf "${path##*/}\e[0m <$mime>\n"
+}
+
+################################################################################
+set -o nounset
+set -o errexit
+
+declare Tab
+declare Path
+declare Version="0.3"
+declare -A Options=(
+	[tabSize]="${TREECAT_TAB_SIZE:-4}"
+	[indentSize]="${TREECAT_INDENT:-4}"
+	[maxLines]="${TREECAT_LINES:-0}"
+	[printParent]="${TREECAT_PRINT_PARENT:-0}"
+	[recursion]="${TREECAT_RECURSION:-0}"
+	[excludePattern]="${TREECAT_EXCLUDE_PATTERN:-}"
+	[left]="${TREECAT_LEFT:-│ }"
+	[leftBottom]="${TREECAT_LEFT_BOTTOM:-╰}"
+	[bottom]="${TREECAT_BOTTOM:-─}"
+	[leftBottomPrtl]="${TREECAT_LEFT_BOTTOM_PRTL:-╵}"
+	[bottomPrtl]="${TREECAT_BOTTOM_PRTL:-╶}"
+	[symlink]="${TREECAT_SYMLINK:-→}"
+	[useColors]="${TREECAT_USE_COLORS:-0}"
+	[colorMime]="${TREECAT_COLOR_MIME:-\e[0m}"
+	[colorDir]="${TREECAT_COLOR_DIR:-\e[1m}"
+	[colorFile]="${TREECAT_COLOR_FILE:-\e[1m}"
+	[colorContent]="${TREECAT_COLOR_CONTENT:-\e[2m}"
+)
+
+getPathAndOptions $@ || exit $?
+if ((${Options[printParent]} > 0)); then
+	((${Options[useColors]})) && printf "${Options[colorDir]}"
+	echo -e "$Path\e[0m"
+fi
+
+cd "$Path"
 shopt -s globstar
 shopt -s dotglob
 
-indent=2           # amount of indendation charatcers
-maxlines=0         # print max number of lines from file (0 means all)
-printparent=true   # print parent path at top
-treepath=          # `realpath` of user provided directory
-treeparent=        # parent path of user proveded directory
+for path in **; do
+	depth="${path//[^\/]/}"; depth=${#depth}
+	[[ -d "$path" ]] && path="$path/"
+	[[ -n ${Options[excludePattern]} ]] && [[ "$path" =~ ${Options[excludePattern]} ]] && continue
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-out()   { printf "$1 $2\n" "${@:3}"; }
-error() { out "==> ERROR:" "$@"; } >&2
-msg()   { out "==>" "$@"; }
-msg2()  { out "  ->" "$@";}
-die()   { error "$@"; exit 1; }
+	((${Options[recursion]} > 0)) && ((depth >= ${Options[recursion]})) && continue
+	((${Options[printParent]} > 0)) && ((++depth))
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-print_usage ()
-{
-  echo 'treecat v0.2 - list directory tree and content or type of files'
-  echo 'usage:'
-  echo '   treecat [options] <directory>'
-  echo 'options:'
-  echo '   -h       print usage and options'
-  echo "   -i <n>   directory depth indentation   (default $indent)"
-  echo "   -l <n>   print max <n> lines of a file (default $maxlines == all)"
-  echo '   -p       do not print parent path at top'
-  exit 0
-}
+	indent=$(printf "%$((depth*${Options[indentSize]}))s")
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-print_text_plain ()
-{
-  local border='│ '
-  local linenr=0
-  local foo=
-  local bar=
-
-  printf '\n'
-
-  while IFS= read line
-  do
-
-    if ((maxlines > 0)) && ((linenr++ >= maxlines)); then
-      printf '%s%s…\n' "$leftpad" "$border"
-      break
-    fi
-
-    if ((depth)) && ((indent)); then
-      printf "$leftpad"
-    fi
-    printf "$border"
-    printf "%s\n" "$line"
-
-    if ((${#line} > bar)); then
-      foo=${#line}
-      bar=$foo
-    fi
-
-  done < "$abspath"
-  
-  if ((depth)) && ((indent)); then
-    printf "$leftpad"
-  fi
-
-  local str=$(printf "%${foo}s");
-  printf '╰─%s\n' "${str// /─}"
-}
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-print_inode_symlink ()
-{
-  printf ' -> %s\n' "$(realpath $abspath)"
-}
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-print_inode_directory ()
-{
-  printf '/\n'
-}
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-print_leftpad ()
-{
-  if ((depth)) && ((indent)); then
-    printf "$leftpad"
-  fi
-}
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-print_path ()
-{
-
-  print_leftpad
-
-  if ((indent == 0)); then
-    printf "$relpath"
-  else
-    printf "${relpath##*/}"
-  fi
-}
-
-############################################################################### 
-while getopts ':hi:l:p' opt
-do
-  case $opt in
-    'h') print_usage ;;
-    'i') indent=$OPTARG ;;
-    'l') maxlines=$OPTARG ;;
-    'p') printparent=false ;;
-    '?') die "Invalid option '-%s', maybe try -h" $OPTARG ;;
-  esac
+	if [[ -d "$path" ]]; then
+		((${Options[useColors]})) && printf "${Options[colorDir]}"
+		echo -e "$indent$path\e[0m"
+	else
+		mime=$(file -b --mime-type "$path")
+		case "$mime" in
+			text/*) printFile "$path" "$indent" "$mime";;
+			application/xml) printFile "$path" "$indent" "$mime";;
+			*/symlink) printSymlink "$path" "$indent" "$mime";;
+			*) printBinary "$path" "$indent" "$mime";;
+		esac
+	fi
 done
-shift $((OPTIND - 1))
-treepath="$*"
-
-[[ -z "$treepath" ]] && die 'No directory given, maybe try -h'
-[[ -d "$treepath" ]] || die "Not a directory: '%s'" "$treepath"
-
-treepath=$(realpath $treepath)
-treeparent=${treepath%/*}
-if $printparent; then
-  printf '[%s/]\n' "$treeparent"
-fi
-
-for abspath in "$treepath"/**
-do
-  abspath=${abspath%/}
-  relpath="${abspath#$treeparent/}"
-  depth="${relpath//[^\/]/}"
-  depth=${#depth}
-  leftpad=$(printf "%$((depth*indent))s")
-  mime=$(file -b --mime-type "$abspath")
-
-  print_path
-
-  case "$mime" in
-    'text/plain')         print_text_plain ;;
-    'text/x-shellscript') print_text_plain ;;
-    'application/xml')    print_text_plain ;;
-    'inode/symlink')      print_inode_symlink ;;
-    'inode/directory')    print_inode_directory ;;
-    *)                    printf ' <%s>\n' "$mime" ;;
-  esac
-done
-

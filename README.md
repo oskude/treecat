@@ -1,69 +1,57 @@
-treecat
-=======
+# treecat
+List directory tree with file mime-type and content.
 
-list directory tree and content or type of files
+## Usage
+```
+treecat [options] <directory>
+```
 
-usage
------
+## Options
+```
+-h         print help and options
+-c         use colors
+-e <expr>  exclude files/dirs          (current: )
+-i <n>     indentation width           (current: 4)
+-l <n>     lines of a file to print    (current: 0)
+-p         parent path printed at top
+-r <n>     recursion depth             (current: 0)
+-t <n>     tab width (inside files)    (current: 4)
+```
 
-    treecat [options] <directory>
-
-options
--------
-
-    -h       print usage and options
-    -i <n>   directory depth indentation
-    -l <n>   print max <n> lines of a file
-    -p       do not print parent path at top
-
-example
--------
-
-    ❱❱ treecat -p -l3 /etc/X11/
-    X11/
-      xinit/
-        xinitrc.d/
-          30-dbus
-          │ #!/bin/bash
-          │ 
-          │ # launches a session dbus instance
-          │ …
-          ╰───────────────────────────────────
-          40-libcanberra-gtk-module
-          │ #!/bin/bash
-          │ 
-          │ case "$DESKTOP_SESSION" in
-          │ …
-          ╰───────────────────────────
-          pulseaudio
-          │ #!/bin/bash
-          │ 
-          │ case "$DESKTOP_SESSION" in
-          │ …
-          ╰───────────────────────────
-          xdg-user-dirs
-          │ #!/bin/sh
-          │ 
-          │ # Set up user directories like ~/Desktop and ~/Music
-          │ …
-          ╰─────────────────────────────────────────────────────
-      xorg.conf.d/
-        10-evdev.conf
-        │ #
-        │ # Catch-all evdev loader for udev-based systems
-        │ # We don't simply match on any device since that also adds accelerometers
-        │ …
-        ╰──────────────────────────────────────────────────────────────────────────
-        10-quirks.conf
-        │ # Collection of quirks and blacklist/whitelists for specific devices.
-        │ 
-        │ 
-        │ …
-        ╰──────────────────────────────────────────────────────────────────────
-        30-mydefaults.conf
+## Example
+```
+❱ ./treecat -p -l 3 /etc/X11/
+/etc/X11/
+    xinit/
+        xinitrc <text/x-shellscript>
+        │ #!/bin/sh
+        │
+        │ userresources=$HOME/.Xresources
+        ╵╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶
+        xinit/xinitrc.d/
+            40-libcanberra-gtk-module.sh <text/x-shellscript>
+            │ #!/bin/sh
+            │
+            │ case "${DESKTOP_SESSION-}" in
+            ╵╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶
+            50-systemd-user.sh <text/x-shellscript>
+            │ #!/bin/sh
+            │
+            │ systemctl --user import-environment DISPLAY XAUTHORITY
+            ╵╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶
+        xserverrc <text/x-shellscript>
+        │ #!/bin/sh
+        │ exec /usr/bin/X -nolisten tcp "$@"
+        ╰───────────────────────────────────
+    xorg.conf.d/
+        00-keyboard.conf <text/plain>
         │ Section "InputClass"
         │   Identifier      "My Keyboard"
         │   MatchIsKeyboard "yes"
-        │ …
-        ╰────────────────────────────────
-
+        ╵╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶
+        30-mydefaults.conf <text/plain>
+        │ Section "InputClass"
+        │   Identifier      "My Keyboard"
+        │   MatchIsKeyboard "yes"
+        ╵╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶
+```
