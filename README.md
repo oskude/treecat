@@ -55,3 +55,6 @@ treecat [options] <directory>
         │   MatchIsKeyboard "yes"
         ╵╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶
 ```
+
+## Screenshot
+![screenshot](screenshot.gif?raw=true "screenshot of treecat color output")
